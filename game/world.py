@@ -5,7 +5,7 @@ def generate_world_matrix(rows=4, cols=4):
     return [[random.choice([1, 2, 3]) for _ in range(cols)] for _ in range(rows)]
 
 def generate_payoff_matrix(world):
-
+    print("Generating payoff matrix...")
     rows, cols = len(world), len(world[0])
     size = rows * cols
     
@@ -37,36 +37,14 @@ def generate_payoff_matrix(world):
                             score = 2
                     
                     matrix[h_index][s_index] = score
+
+    # Print the matrix
+    print("Payoff Matrix:")
+    for row in matrix:
+        print(row)
+                    
     
     return matrix
 
-def position_to_notation(index, cols):
-    """Convert a 1D index to (row, col) notation"""
-    row = index // cols
-    col = index % cols
-    return f"({row},{col})"
-
-# Example usage:
-rows, cols = 4, 4
-world = generate_world_matrix(rows, cols)
-payoff_matrix = generate_payoff_matrix(world)
-
-print("World matrix (1=Neutral, 2=Easy, 3=Hard):")
-for row in world:
-    print(row)
 
 
-# Print column headers (seeker positions)
-print( end="\t")
-for s in range(rows * cols):
-    print(position_to_notation(s, cols), end="\t")
-print()
-
-# Print payoff matrix with row headers (hider positions)
-for h in range(rows * cols):
-    print(position_to_notation(h, cols), end="\t")
-    for s in range(rows * cols):
-        print(payoff_matrix[h][s], end="\t")
-    print()
-
-print("\nExample analysis:")

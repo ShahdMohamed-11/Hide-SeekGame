@@ -26,12 +26,11 @@ class GameManager:
         self.computer_role = "seeker" if human_role == "hider" else "hider"
         print("Game started. ", self.human_role, self.computer_role)  
         self.set_computer_strategy()
+
          
     def set_computer_strategy(self):
         solver = LPSolver(self.payoff_matrix, role=self.computer_role)
-        print("jananananm")  
         solver.solve()
-        print("janananan")  
         self.computer_strategy = solver.get_strategy_probabilities()
     
 
@@ -47,6 +46,9 @@ class GameManager:
         else:
           self.hider_index = self.computer_move()
           self.seeker_index = None  # wait for human seeker move later
+        print("Computer strategy set.", self.computer_strategy)
+        print("actual countsssssss")
+        print(self.actual_counts)
 
     def finish_round(self, human_row, human_col):
     
@@ -55,6 +57,8 @@ class GameManager:
 
       self.seeker_index = human_row * self.cols + human_col
       self._complete_round()
+      print("Seeker Index ", self.seeker_index, self.hider_index) 
+      print("Hider Id ", self.human_role, self.computer_role) 
     
     def _complete_round(self):
      score = self.payoff_matrix[self.hider_index][self.seeker_index]
