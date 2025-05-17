@@ -17,7 +17,10 @@ class SimuGUI(QWidget):
         self.timer = QTimer()
         self.timer.setInterval(1000)  # 1 second per round
         self.timer.timeout.connect(self.play_round)
-
+        
+        # Store cell labels for updating
+        self.cell_labels = []
+        
         self.init_ui()
         self.setStyleSheet(self.main_style_sheet())
         self.run_simulation()
@@ -58,14 +61,39 @@ class SimuGUI(QWidget):
             self.result_display.append(f"Final Score → Hider: {self.manager.human_score} | Seeker: {self.manager.computer_score}")
             return
 
+        # Reset cell colors from previous round (if any)
+        self.reset_cell_colors()
+        
         self.manager.start_round()
         history = self.manager.game_history[-1]
         hider_idx = history["hider"]
         seeker_idx = history["seeker"]
         result = history["result"]
 
-        hider_pos = (hider_idx // self.manager.cols, hider_idx % self.manager.cols)
-        seeker_pos = (seeker_idx // self.manager.cols, seeker_idx % self.manager.cols)
+        hider_row, hider_col = hider_idx // self.manager.cols, hider_idx % self.manager.cols
+        seeker_row, seeker_col = seeker_idx // self.manager.cols, seeker_idx % self.manager.cols
+        
+        hider_pos = (hider_row, hider_col)
+        seeker_pos = (seeker_row, seeker_col)
+
+        # Update the cells with H and S, and color them based on success/failure
+        if hider_idx == seeker_idx:  # Seeker found the hider
+            # Both on the same cell - show both letters and color green for seeker (success)
+            self.cell_labels[hider_row][hider_col].setText("H,S")
+            self.cell_labels[hider_row][hider_col].setStyleSheet(
+                "border: 1px solid #666; background-color: #4CAF50; color: white; font-size: 18px; font-weight: bold; border-radius: 8px;"
+            )
+        else:
+            # Hider not found - Hider succeeds (green) and Seeker fails (red)
+            self.cell_labels[hider_row][hider_col].setText("H")
+            self.cell_labels[hider_row][hider_col].setStyleSheet(
+                "border: 1px solid #666; background-color: #4CAF50; color: white; font-size: 18px; font-weight: bold;"
+            )
+            
+            self.cell_labels[seeker_row][seeker_col].setText("S")
+            self.cell_labels[seeker_row][seeker_col].setStyleSheet(
+                "border: 1px solid #666; background-color: #F44336; color: white; font-size: 18px; font-weight: bold; border-radius: 8px;"
+            )
 
         msg = f"🕹️ Round {history['round']}:\n"
         msg += f" - Hider at: {hider_pos}\n"
@@ -74,19 +102,37 @@ class SimuGUI(QWidget):
         msg += f"Score → Hider: {self.manager.human_score} | Seeker: {self.manager.computer_score}\n\n"
         self.result_display.append(msg)
 
+    def reset_cell_colors(self):
+        # Reset all cells to their original appearance
+        for r in range(self.manager.rows):
+            for c in range(self.manager.cols):
+                cell_type = self.manager.world[r][c]
+                type_map = {1: "N", 2: "E", 3: "H"}
+                val = type_map[cell_type]
+                self.cell_labels[r][c].setText(val)
+                self.cell_labels[r][c].setStyleSheet(
+                    "border: 1px solid #666; background-color: #2e2e3e; color: white; font-size: 18px; border-radius: 8px;"
+                )
+
     def display_world(self):
         type_map = {1: "N", 2: "E", 3: "H"}
         world = self.manager.world
         rows, cols = self.manager.rows, self.manager.cols
+        
+        # Initialize the 2D list for cell labels
+        self.cell_labels = []
 
         for r in range(rows):
+            row_labels = []
             for c in range(cols):
                 val = type_map[world[r][c]]
                 cell = QLabel(val)
                 cell.setAlignment(Qt.AlignmentFlag.AlignCenter)
                 cell.setFixedSize(60, 60)
-                cell.setStyleSheet("border: 1px solid #666; background-color: #2e2e3e; color: white; font-size: 18px;")
+                cell.setStyleSheet("border: 1px solid #666; background-color: #2e2e3e; color: white; font-size: 18px; border-radius: 8px;")
                 self.grid_layout.addWidget(cell, r, c)
+                row_labels.append(cell)
+            self.cell_labels.append(row_labels)
 
     def end_simulation(self):
         self.timer.stop()
@@ -123,6 +169,7 @@ class SimuGUI(QWidget):
 
         QLabel {
             font-weight: bold;
+            border-radius: 8px;
         }
         """
 
