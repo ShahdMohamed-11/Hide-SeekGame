@@ -2,7 +2,7 @@ import random
 import numpy as np
 
 def generate_world_matrix(rows=4, cols=4):
-     return [[3,3,3,2],[1,2,2,3],[2,1,2,3],[2,3,2,2]]
+    return [[random.choice([1, 2, 3]) for _ in range(cols)] for _ in range(rows)]
 
 def manhattan_distance(r1, c1, r2, c2):
     return abs(r1 - r2) + abs(c1 - c2)
