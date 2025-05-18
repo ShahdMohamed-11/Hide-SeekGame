@@ -134,7 +134,7 @@ class GameGUI(QWidget):
             btn.deleteLater()
         self.cell_buttons.clear()
 
-        type_map = {1: "N", 2: "E", 3: "H"}
+        type_map = {1: "E", 2: "N", 3: "H"}
         world = self.manager.world
         rows, cols = self.manager.rows, self.manager.cols
 
@@ -157,7 +157,7 @@ class GameGUI(QWidget):
         self.reset_cell_colors()
         
         # Re-display the initial world state
-        type_map = {1: "N", 2: "E", 3: "H"}
+        type_map = {1: "E", 2: "N", 3: "H"}
         rows, cols = self.manager.rows, self.manager.cols
         
         for r in range(rows):

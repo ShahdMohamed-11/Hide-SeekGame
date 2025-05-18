@@ -61,23 +61,8 @@ class GameManager:
       print("Hider Id ", self.human_role, self.computer_role) 
     
     def _complete_round(self):
-     
-     hider_row = self.hider_index // 4
-     hider_col = self.hider_index % 4
-
-     seeker_row = self.seeker_index // 4
-     seeker_col = self.seeker_index % 4
-
-     dis = abs(hider_row - seeker_row) + abs(hider_col - seeker_col)
-
-     if dis == 1:
-        multiplier = 0.5
-     elif dis == 2:
-        multiplier = 0.75
-     else:
-        multiplier = 1
-    
-     score = self.payoff_matrix[self.hider_index][self.seeker_index]*multiplier
+        
+     score = self.payoff_matrix[self.hider_index][self.seeker_index]
 
      if self.human_role == "hider":
         self.human_score += score
