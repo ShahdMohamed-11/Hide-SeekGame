@@ -15,7 +15,7 @@ class GameGUI(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Hider vs Seeker Game")
-        self.resize(650, 650)  # Original size preserved
+        self.resize(600, 600)  # Original size preserved
         self.manager = GameManager()
         self.cell_buttons = []
         self.initial_world = None  # Store the initial world state
