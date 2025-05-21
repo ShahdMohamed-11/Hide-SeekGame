@@ -1,10 +1,12 @@
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QComboBox, QPushButton,
-    QLabel, QGridLayout, QMessageBox, QHBoxLayout, QTextEdit, QSizePolicy
+    QLabel, QGridLayout, QMessageBox, QHBoxLayout, QTextEdit, QSizePolicy,
+    QTabWidget, QTableWidget, QTableWidgetItem, QHeaderView
 )
 from PyQt6.QtCore import Qt
 import sys
 import copy
+import numpy as np
 
 from game_manager import GameManager
 
@@ -13,7 +15,7 @@ class GameGUI(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Hider vs Seeker Game")
-        self.resize(650, 650)  
+        self.resize(650, 650)  # Original size preserved
         self.manager = GameManager()
         self.cell_buttons = []
         self.initial_world = None  # Store the initial world state
@@ -23,7 +25,14 @@ class GameGUI(QWidget):
 
     def init_ui(self):
         self.layout = QVBoxLayout()
-
+        
+        # Create main tab widget that takes up the whole window
+        self.main_tabs = QTabWidget()
+        
+        # Create Game Tab
+        self.game_tab = QWidget()
+        game_layout = QVBoxLayout()
+        
         # Top: Role selection and start button
         top_controls = QHBoxLayout()
         self.role_selector = QComboBox()
@@ -36,7 +45,7 @@ class GameGUI(QWidget):
         self.start_button.clicked.connect(self.start_game)
         top_controls.addWidget(self.start_button)
 
-        self.layout.addLayout(top_controls)
+        game_layout.addLayout(top_controls)
 
         # Status message with round and score on the right
         status_layout = QHBoxLayout()
@@ -51,22 +60,22 @@ class GameGUI(QWidget):
         self.round_score_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         status_layout.addWidget(self.round_score_label)
 
-        self.layout.addLayout(status_layout)
-
-        # Result message area (inside app)
+        game_layout.addLayout(status_layout)
+        
+        # History display (directly in game tab)
         self.result_display = QTextEdit()
         self.result_display.setReadOnly(True)
         self.result_display.setObjectName("ResultDisplay")
-        self.layout.addWidget(self.result_display)
-
+        game_layout.addWidget(self.result_display)
+        
         # History toggle button
         self.history_toggle_button = QPushButton("Hide History")
         self.history_toggle_button.setObjectName("ToggleHistoryButton")
         self.history_toggle_button.clicked.connect(self.toggle_history_display)
-        self.layout.addWidget(self.history_toggle_button)
+        game_layout.addWidget(self.history_toggle_button)
 
         # Game board layout with Next Round button alongside
-        game_layout = QHBoxLayout()
+        board_layout = QHBoxLayout()
         
         # World matrix (game board)
         self.grid_layout = QGridLayout()
@@ -74,7 +83,7 @@ class GameGUI(QWidget):
         self.grid_container = QWidget()
         self.grid_container.setLayout(self.grid_layout)
         self.grid_container.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        game_layout.addWidget(self.grid_container, stretch=1)
+        board_layout.addWidget(self.grid_container, stretch=1)
         
         # Add next round button beside the world grid
         side_controls = QVBoxLayout()
@@ -84,16 +93,58 @@ class GameGUI(QWidget):
         self.next_round_button.setEnabled(False)  # Initially disabled until game starts
         side_controls.addWidget(self.next_round_button)
         side_controls.addStretch()  # Push the button to the top
-        game_layout.addLayout(side_controls)
+        board_layout.addLayout(side_controls)
         
-        self.layout.addLayout(game_layout)
+        game_layout.addLayout(board_layout)
 
         # End game button at the bottom
         self.end_game_button = QPushButton("End Game")
         self.end_game_button.setObjectName("EndGameButton")
         self.end_game_button.clicked.connect(self.end_game)
-        self.layout.addWidget(self.end_game_button)
-
+        game_layout.addWidget(self.end_game_button)
+        
+        # Set the game tab layout
+        self.game_tab.setLayout(game_layout)
+        
+        # Create Matrices Tab
+        self.matrices_tab = QWidget()
+        matrices_layout = QVBoxLayout()
+        
+        # Create a section for the payoff matrix
+        payoff_section = QVBoxLayout()
+        payoff_label = QLabel("Payoff Matrix:")
+        payoff_label.setObjectName("MatrixLabel")
+        payoff_section.addWidget(payoff_label)
+        
+        # Create a table for the payoff matrix
+        self.payoff_table = QTableWidget()
+        self.payoff_table.setObjectName("MatrixTable")
+        payoff_section.addWidget(self.payoff_table)
+        
+        # Create a section for the computer strategy
+        strategy_section = QVBoxLayout()
+        strategy_label = QLabel("Computer Strategy:")
+        strategy_label.setObjectName("MatrixLabel")
+        strategy_section.addWidget(strategy_label)
+        
+        # Create a table for the computer strategy
+        self.strategy_table = QTableWidget()
+        self.strategy_table.setObjectName("MatrixTable")
+        strategy_section.addWidget(self.strategy_table)
+        
+        # Add both sections to the matrices layout
+        matrices_layout.addLayout(payoff_section)
+        matrices_layout.addLayout(strategy_section)
+        
+        self.matrices_tab.setLayout(matrices_layout)
+        
+        # Add both tabs to the main tab widget
+        self.main_tabs.addTab(self.game_tab, "Game")
+        self.main_tabs.addTab(self.matrices_tab, "Matrices")
+        
+        # Add the main tab widget to the layout
+        self.layout.addWidget(self.main_tabs)
+        
         self.setLayout(self.layout)
 
     def update_round_score_display(self):
@@ -119,6 +170,9 @@ class GameGUI(QWidget):
         self.update_round_score_display()
         self.next_round_button.setEnabled(True)  # Enable the next round button
 
+        # Update matrices display
+        self.update_matrices_display()
+
         if role == "seeker":
             # Computer selects hiding spot
             try:
@@ -128,6 +182,55 @@ class GameGUI(QWidget):
                 self.update_round_score_display()
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to start round: {e}")
+
+    def update_matrices_display(self):
+        """Update the matrices tab with payoff matrix and computer strategy"""
+        if self.manager.payoff_matrix is not None:
+            # Display payoff matrix
+            rows, cols = self.manager.rows, self.manager.cols
+            size = rows * cols
+            
+            # Set up payoff table dimensions
+            self.payoff_table.setRowCount(size)
+            self.payoff_table.setColumnCount(size)
+            
+            # Fill payoff table with data
+            for i in range(size):
+                for j in range(size):
+                    # Display just the number without any additions
+                    value = self.manager.payoff_matrix[i][j]
+                    item = QTableWidgetItem(str(value))
+                    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                    self.payoff_table.setItem(i, j, item)
+            
+            # Auto-resize columns to fit content
+            self.payoff_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+            self.payoff_table.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+            
+        if self.manager.computer_strategy is not None:
+            # Display computer strategy
+            size = len(self.manager.computer_strategy)
+            rows = self.manager.rows
+            cols = self.manager.cols
+            
+            # Set up strategy table dimensions
+            self.strategy_table.setRowCount(rows)
+            self.strategy_table.setColumnCount(cols)
+            
+            # Fill strategy table with data - reshape the 1D array to 2D grid
+            for i in range(rows):
+                for j in range(cols):
+                    idx = i * cols + j
+                    if idx < size:
+                        # Display just the probability value without any additions
+                        value = self.manager.computer_strategy[idx]
+                        item = QTableWidgetItem(f"{value:.4f}")  # Format to 4 decimal places
+                        item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                        self.strategy_table.setItem(i, j, item)
+            
+            # Auto-resize columns to fit content
+            self.strategy_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+            self.strategy_table.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
 
     def display_world(self):
         for btn in self.cell_buttons:
@@ -177,6 +280,7 @@ class GameGUI(QWidget):
         
         # Reset the round_finished flag so player can interact with cells again
         self.round_finished = False
+        
     def reset_cell_colors(self):
         # Reset all cells to their default color
         for btn in self.cell_buttons:
@@ -335,6 +439,29 @@ class GameGUI(QWidget):
             font-size: 16px;
         }
 
+        QTabWidget::pane {
+            border: 1px solid #444;
+            background-color: #1e1e2f;
+        }
+        
+        QTabBar::tab {
+            background-color: #2e2e3e;
+            color: white;
+            padding: 8px 16px;
+            border: 1px solid #444;
+            border-bottom: none;
+            border-top-left-radius: 4px;
+            border-top-right-radius: 4px;
+        }
+        
+        QTabBar::tab:selected {
+            background-color: #3e3e5e;
+        }
+        
+        QTabBar::tab:hover:!selected {
+            background-color: #3a3a4a;
+        }
+
         #RoleSelector, #StartButton, #EndGameButton, #ToggleHistoryButton, #NextRoundButton {
             padding: 8px 12px;
             font-size: 15px;
@@ -417,6 +544,26 @@ class GameGUI(QWidget):
         QPushButton#GridButton:hover {
             background-color: #3e3e5e;
             border: 2px solid #888;
+        }
+        
+        #MatrixLabel {
+            font-weight: bold;
+            margin-top: 5px;
+            margin-bottom: 5px;
+            font-size: 20px;
+        }
+        
+        #MatrixTable {
+            background-color: #2c2c3c;
+            border: 1px solid #444;
+            font-size: 16px;
+        }
+        
+        #MatrixTable QHeaderView::section {
+            background-color: #3c3c4c;
+            color: white;
+            padding: 4px;
+            border: 1px solid #555;
         }
         """
 
